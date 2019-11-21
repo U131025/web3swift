@@ -57,7 +57,7 @@ extension Character
     }
 }
 
-class Bech32: NSObject {
+public class Bech32: NSObject {
     
     static let CHARSET = "qpzry9x8gf2tvdw0s3jn54khce6mua7l"
     static let CHARSET_REV: [Int] = [
