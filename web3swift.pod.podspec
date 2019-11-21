@@ -7,7 +7,7 @@ Pod::Spec.new do |spec|
     spec.watchos.deployment_target = "2.0"
     spec.license      = { :type => 'Apache License 2.0', :file => 'LICENSE.md' }
     spec.summary      = 'Web3 implementation in pure Swift for iOS, macOS, tvOS, watchOS and Linux'
-    spec.homepage     = 'https://github.com/bankex/web3swift'
+    spec.homepage     = 'https://github.com/U131025/web3swift'
     spec.author       = 'Bankex Foundation'
     spec.source       = { :git => 'https://github.com/U131025/web3swift.git', :tag => spec.version }
     spec.source_files = 'Sources/web3swift/**/*.swift'
