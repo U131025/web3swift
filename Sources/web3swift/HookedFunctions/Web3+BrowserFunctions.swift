@@ -96,8 +96,8 @@ public class Web3BrowserFunctions: Web3OptionsInheritable {
      */
     public func personalECRecover(_ personalMessage: Data, signature: Data) throws -> String {
         try signature.checkSignatureSize()
-        let rData = signature[0 ..< 32].bytes
-        let sData = signature[32 ..< 64].bytes
+        let rData = signature[0 ..< 32].bytesWeb
+        let sData = signature[32 ..< 64].bytesWeb
         let vData = signature[64]
         let signatureData = try SECP256K1.marshalSignature(v: vData, r: rData, s: sData)
         var hash: Data

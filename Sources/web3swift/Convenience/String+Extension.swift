@@ -96,10 +96,11 @@ extension String {
         return "0x" + self
     }
     
-    /// Returns string without "0x" prefix (if isHex)
+    /// Returns string without "0x" prefix (if isHex)XY:更新
     public var withoutHex: String {
         guard isHex else { return self }
         return String(self[2...])
+        //return self
     }
     
     /// Returns hex string

@@ -49,6 +49,7 @@ public class BIP32Keystore: AbstractKeystore {
         guard let index = UInt32(key.components(separatedBy: "/").last!) else { throw AbstractKeystoreError.encryptionError("Derivation depth mismatch") }
         let keyNode = try rootNode.derive(index: index, derivePrivateKey: true)
         guard let privateKey = keyNode.privateKey else { throw AbstractKeystoreError.invalidAccountError }
+
         return privateKey
     }
 
@@ -67,7 +68,7 @@ public class BIP32Keystore: AbstractKeystore {
     public convenience init?(_ jsonString: String) {
         self.init(jsonString.lowercased().data)
     }
-
+    
     /// Init with json file
     public init?(_ jsonData: Data) {
         guard var keystoreParams = try? JSONDecoder().decode(KeystoreParamsBIP32.self, from: jsonData) else { return nil }
@@ -139,7 +140,7 @@ public class BIP32Keystore: AbstractKeystore {
         } else {
             newPath = prefixPath + "/" + String(newNode.index)
         }
-        paths[newPath] = newAddress
+        paths["usdp" + newPath] = newAddress
         guard let serializedRootNode = parentNode.serialize(serializePublic: false) else { throw AbstractKeystoreError.keyDerivationError }
         try encryptDataToStorage(password, data: serializedRootNode, aesMode: aesMode)
     }
@@ -197,16 +198,16 @@ public class BIP32Keystore: AbstractKeystore {
         var aesCipher: AES?
         switch aesMode {
         case "aes-128-cbc":
-            aesCipher = AES(key: encryptionKey.bytes, blockMode: CBC(iv: IV.bytes), padding: .pkcs7)
+            aesCipher = AES(key: encryptionKey.bytesWeb, blockMode: CBC(iv: IV.bytesWeb), padding: .pkcs7)
         case "aes-128-ctr":
-            aesCipher = AES(key: encryptionKey.bytes, blockMode: CTR(iv: IV.bytes), padding: .pkcs7)
+            aesCipher = AES(key: encryptionKey.bytesWeb, blockMode: CTR(iv: IV.bytesWeb), padding: .pkcs7)
         default:
             aesCipher = nil
         }
         if aesCipher == nil {
             throw AbstractKeystoreError.aesError
         }
-        guard let encryptedKey = try aesCipher?.encrypt(data!.bytes) else { throw AbstractKeystoreError.aesError }
+        guard let encryptedKey = try aesCipher?.encrypt(data!.bytesWeb) else { throw AbstractKeystoreError.aesError }
         let encryptedKeyData = Data(bytes: encryptedKey)
         var dataForMAC = Data()
         dataForMAC.append(last16bytes)
@@ -250,7 +251,7 @@ public class BIP32Keystore: AbstractKeystore {
             guard let algo = keystorePars.crypto.kdfparams.prf else { return nil }
             let hashVariant = try HmacVariant(algo)
             guard let c = keystorePars.crypto.kdfparams.c else { return nil }
-            guard let derivedArray = try? BetterPBKDF(password: Array(password.utf8), salt: saltData.bytes, iterations: c, keyLength: derivedLen, variant: hashVariant) else { return nil }
+            guard let derivedArray = try? BetterPBKDF(password: Array(password.utf8), salt: saltData.bytesWeb, iterations: c, keyLength: derivedLen, variant: hashVariant) else { return nil }
             passwordDerivedKey = Data(bytes: derivedArray)
         default:
             return nil
@@ -270,11 +271,11 @@ public class BIP32Keystore: AbstractKeystore {
         var decryptedPK: Array<UInt8>?
         switch cipher {
         case "aes-128-ctr":
-            let aesCipher = AES(key: decryptionKey.bytes, blockMode: CTR(iv: IV.bytes), padding: .pkcs7)
-            decryptedPK = try aesCipher.decrypt(cipherText.bytes)
+            let aesCipher = AES(key: decryptionKey.bytesWeb, blockMode: CTR(iv: IV.bytesWeb), padding: .pkcs7)
+            decryptedPK = try aesCipher.decrypt(cipherText.bytesWeb)
         case "aes-128-cbc":
-            let aesCipher = AES(key: decryptionKey.bytes, blockMode: CBC(iv: IV.bytes), padding: .pkcs7)
-            decryptedPK = try? aesCipher.decrypt(cipherText.bytes)
+            let aesCipher = AES(key: decryptionKey.bytesWeb, blockMode: CBC(iv: IV.bytesWeb), padding: .pkcs7)
+            decryptedPK = try? aesCipher.decrypt(cipherText.bytesWeb)
         default:
             return nil
         }

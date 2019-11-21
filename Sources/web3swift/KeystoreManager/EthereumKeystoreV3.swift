@@ -9,22 +9,22 @@
 import Foundation
 
 /**
-# Web3 Secret Storage
-
-Used to store your account in json file safely
-
-[https://github.com/ethereum/wiki/wiki/Web3-Secret-Storage-Definition](https://github.com/ethereum/wiki/wiki/Web3-Secret-Storage-Definition)
-*/
+ # Web3 Secret Storage
+ 
+ Used to store your account in json file safely
+ 
+ [https://github.com/ethereum/wiki/wiki/Web3-Secret-Storage-Definition](https://github.com/ethereum/wiki/wiki/Web3-Secret-Storage-Definition)
+ */
 public class EthereumKeystoreV3: AbstractKeystore {
-	/// - Returns: array of single address or empty array
+    /// - Returns: array of single address or empty array
     public var addresses: [Address] {
         guard let address = address else { return [] }
         return [address]
     }
-	
-	/// - Returns false
+    
+    /// - Returns false
     public var isHDKeystore = false
-
+    
     /// throws AbstractKeystoreError.invalidPasswordError
     /// throws AbstractKeystoreError.invalidAccountError
     public func UNSAFE_getPrivateKeyData(password: String, account: Address) throws -> Data {
@@ -35,24 +35,26 @@ public class EthereumKeystoreV3: AbstractKeystore {
         }
         throw AbstractKeystoreError.invalidAccountError
     }
-
+    
     /// Keystore address
     public private(set) var address: Address?
-	/// Keystore Parameters (Json convertible)
+    /// Keystore Parameters (Json convertible)
     public var keystoreParams: KeystoreParamsV3?
-
-	/// Init with json file
+    
+    /// Init with json file
     public convenience init?(_ jsonString: String) {
-        self.init(jsonString.lowercased().data)
+        //XY:修改
+        //self.init(jsonString.lowercased().data)
+        self.init(jsonString.data)
     }
-	
-	/// Init with json file
+    
+    /// Init with json file
     public convenience init?(_ jsonData: Data) {
         guard let keystoreParams = try? JSONDecoder().decode(KeystoreParamsV3.self, from: jsonData) else { return nil }
         self.init(keystoreParams)
     }
-	
-	/// Init with decoded keystore parameters
+    
+    /// Init with decoded keystore parameters
     public init?(_ keystoreParams: KeystoreParamsV3) {
         if keystoreParams.version != 3 { return nil }
         if keystoreParams.crypto.version != nil && keystoreParams.crypto.version != "1" { return nil }
@@ -63,13 +65,13 @@ public class EthereumKeystoreV3: AbstractKeystore {
             return nil
         }
     }
-	
-	/**
-	Creates a new keystore with password and aesMode.
-	Clears the private key seed from memory after init
-	- Parameter password: Password that would be used to encrypt private key
-	- Parameter aesMode: Encryption mode. Allowed: "aes-128-cbc", "aes-128-ctr"
-	*/
+    
+    /**
+     Creates a new keystore with password and aesMode.
+     Clears the private key seed from memory after init
+     - Parameter password: Password that would be used to encrypt private key
+     - Parameter aesMode: Encryption mode. Allowed: "aes-128-cbc", "aes-128-ctr"
+     */
     public init? (password: String = "BANKEXFOUNDATION", aesMode: String = "aes-128-cbc") throws {
         var newPrivateKey = Data.random(length: 32)
         defer { Data.zero(&newPrivateKey) }
@@ -87,13 +89,13 @@ public class EthereumKeystoreV3: AbstractKeystore {
     /// ```
     /// Data.zero(&privateKey)
     /// ```
-    public init? (privateKey: Data, password: String = "BANKEXFOUNDATION", aesMode: String = "aes-128-cbc") throws {
+    public init? (privateKey: Data, password: String = "BANKEXFOUNDATION", aesMode: String = "aes-128-ctr", walletType: CreateWalletType = CreateWalletType.htdf) throws {
         guard privateKey.count == 32 else { return nil }
         try SECP256K1.verifyPrivateKey(privateKey: privateKey)
-        try encryptDataToStorage(password, keyData: privateKey, aesMode: aesMode)
+        try encryptDataToStorage(password, keyData: privateKey, aesMode: aesMode, walletType: walletType)
     }
-
-    fileprivate func encryptDataToStorage(_ password: String, keyData: Data?, dkLen: Int = 32, N: Int = 4096, R: Int = 6, P: Int = 1, aesMode: String = "aes-128-cbc") throws {
+    
+    fileprivate func encryptDataToStorage(_ password: String, keyData: Data?, dkLen: Int = 32, N: Int = 4096, R: Int = 6, P: Int = 1, aesMode: String = "aes-128-ctr", walletType: CreateWalletType = CreateWalletType.htdf) throws {
         if keyData == nil {
             throw AbstractKeystoreError.encryptionError("Encryption without key data")
         }
@@ -106,14 +108,14 @@ public class EthereumKeystoreV3: AbstractKeystore {
         var aesCipher: AES!
         switch aesMode {
         case "aes-128-cbc":
-            aesCipher = AES(key: encryptionKey.bytes, blockMode: CBC(iv: IV.bytes), padding: .noPadding)
+            aesCipher = AES(key: encryptionKey.bytesWeb, blockMode: CBC(iv: IV.bytesWeb), padding: .noPadding)
         case "aes-128-ctr":
-            aesCipher = AES(key: encryptionKey.bytes, blockMode: CTR(iv: IV.bytes), padding: .noPadding)
+            aesCipher = AES(key: encryptionKey.bytesWeb, blockMode: CTR(iv: IV.bytesWeb), padding: .noPadding)
         default:
             aesCipher = nil
         }
         guard aesCipher != nil else { throw AbstractKeystoreError.aesError }
-        let encryptedKey = try aesCipher.encrypt(keyData!.bytes)
+        let encryptedKey = try aesCipher.encrypt(keyData!.bytesWeb)
         let encryptedKeyData = Data(bytes: encryptedKey)
         var dataForMAC = Data()
         dataForMAC.append(last16bytes)
@@ -123,22 +125,26 @@ public class EthereumKeystoreV3: AbstractKeystore {
         let cipherparams = CipherParamsV3(iv: IV.hex)
         let crypto = CryptoParamsV3(ciphertext: encryptedKeyData.hex, cipher: aesMode, cipherparams: cipherparams, kdf: "scrypt", kdfparams: kdfparams, mac: mac.hex, version: nil)
         let pubKey = try Web3Utils.privateToPublic(keyData!)
-        let addr = try Web3Utils.publicToAddress(pubKey)
+        let addr = try Web3Utils.publicToAddress(pubKey, walletType: walletType)
+
         address = addr
-        let keystoreparams = KeystoreParamsV3(address: addr.address.lowercased(), crypto: crypto, id: UUID().uuidString.lowercased(), version: 3)
+
+        //XY:更改
+//        let keystoreparams = KeystoreParamsV3(address: addr.address.lowercased(), crypto: crypto, id: UUID().uuidString.lowercased(), version: 3)
+        let keystoreparams = KeystoreParamsV3(address: addr.address, crypto: crypto, id: UUID().uuidString.lowercased(), version: 3)
         keystoreParams = keystoreparams
     }
-
-	/// Updates account password
-    public func regenerate(oldPassword: String, newPassword: String, dkLen _: Int = 32, N _: Int = 4096, R _: Int = 6, P _: Int = 1) throws {
+    
+    /// Updates account password
+    public func regenerate(oldPassword: String, newPassword: String, dkLen _: Int = 32, N _: Int = 4096, R _: Int = 6, P _: Int = 1, walletType: CreateWalletType = CreateWalletType.htdf) throws {
         var keyData = try getKeyData(oldPassword)
         if keyData == nil {
             throw AbstractKeystoreError.encryptionError("Failed to decrypt a keystore")
         }
         defer { Data.zero(&keyData!) }
-        try encryptDataToStorage(newPassword, keyData: keyData!, aesMode: keystoreParams!.crypto.cipher)
+        try encryptDataToStorage(newPassword, keyData: keyData!, aesMode: keystoreParams!.crypto.cipher, walletType: walletType)
     }
-
+    
     fileprivate func getKeyData(_ password: String) throws -> Data? {
         guard let keystoreParams = self.keystoreParams else { return nil }
         guard let saltData = Data.fromHex(keystoreParams.crypto.kdfparams.salt) else { return nil }
@@ -154,7 +160,7 @@ public class EthereumKeystoreV3: AbstractKeystore {
             guard let algo = keystoreParams.crypto.kdfparams.prf else { return nil }
             let hashVariant = try HmacVariant(algo)
             guard let c = keystoreParams.crypto.kdfparams.c else { return nil }
-            guard let derivedArray = try? BetterPBKDF(password: Array(password.utf8), salt: saltData.bytes, iterations: c, keyLength: derivedLen, variant: hashVariant) else { return nil }
+            guard let derivedArray = try? BetterPBKDF(password: Array(password.utf8), salt: saltData.bytesWeb, iterations: c, keyLength: derivedLen, variant: hashVariant) else { return nil }
             passwordDerivedKey = Data(bytes: derivedArray)
         default:
             return nil
@@ -166,6 +172,7 @@ public class EthereumKeystoreV3: AbstractKeystore {
         if cipherText.count != 32 { return nil }
         dataForMAC.append(cipherText)
         let mac = dataForMAC.keccak256()
+        
         guard let calculatedMac = Data.fromHex(keystoreParams.crypto.mac), mac.constantTimeComparisonTo(calculatedMac) else { return nil }
         let cipher = keystoreParams.crypto.cipher
         let decryptionKey = derivedKey.prefix(16)
@@ -173,25 +180,65 @@ public class EthereumKeystoreV3: AbstractKeystore {
         var decryptedPK: Array<UInt8>?
         switch cipher {
         case "aes-128-ctr":
-            let aesCipher = AES(key: decryptionKey.bytes, blockMode: CTR(iv: IV.bytes), padding: .noPadding)
-            decryptedPK = try aesCipher.decrypt(cipherText.bytes)
+            let aesCipher = AES(key: decryptionKey.bytesWeb, blockMode: CTR(iv: IV.bytesWeb), padding: .noPadding)
+            decryptedPK = try aesCipher.decrypt(cipherText.bytesWeb)
         case "aes-128-cbc":
-            let aesCipher = AES(key: decryptionKey.bytes, blockMode: CBC(iv: IV.bytes), padding: .noPadding)
-            decryptedPK = try aesCipher.decrypt(cipherText.bytes)
+            let aesCipher = AES(key: decryptionKey.bytesWeb, blockMode: CBC(iv: IV.bytesWeb), padding: .noPadding)
+            decryptedPK = try aesCipher.decrypt(cipherText.bytesWeb)
         default:
             return nil
         }
         guard decryptedPK != nil else { return nil }
+       // NSLog("111111111111111111111111111111:\(Data(bytes: decryptedPK!).hex)")
         return Data(bytes: decryptedPK!)
     }
-	
-	/// Returns json file encoded with v3 standard
+    
+    /// Returns json file encoded with v3 standard
     public func serialize() throws -> Data? {
         guard let params = self.keystoreParams else { return nil }
         let encoder = JSONEncoder()
         encoder.outputFormatting = .prettyPrinted
         let data = try encoder.encode(params)
+        
         return data
+    }
+    
+    /// Returns json file encoded with v3 standard
+    public func serializeString() throws -> [String: Any]? {
+        guard let params = self.keystoreParams else { return nil }
+        
+        var keyDic = [String: Any]()
+        keyDic["address"] = params.address
+        keyDic["id"] = params.id
+        keyDic["version"] = params.version
+        
+        var cryptoParamsV3Dic = [String: Any]()
+        cryptoParamsV3Dic["ciphertext"] = params.crypto.ciphertext
+        cryptoParamsV3Dic["cipher"] = params.crypto.cipher
+        
+        var cipherDic = [String: Any]()
+        cipherDic["iv"]  = params.crypto.cipherparams.iv
+        cryptoParamsV3Dic["cipherparams"] = cipherDic
+        
+        cryptoParamsV3Dic["kdf"] = params.crypto.kdf
+        
+        var kdfDic = [String: Any]()
+        kdfDic["salt"] = params.crypto.kdfparams.salt
+        kdfDic["dklen"] = params.crypto.kdfparams.dklen
+        kdfDic["n"] = params.crypto.kdfparams.n
+        kdfDic["p"] = params.crypto.kdfparams.p
+        kdfDic["r"] = params.crypto.kdfparams.r
+        kdfDic["c"] = params.crypto.kdfparams.c
+        kdfDic["prf"] = params.crypto.kdfparams.prf
+        cryptoParamsV3Dic["kdfparams"] = kdfDic
+        
+        
+        cryptoParamsV3Dic["mac"] = params.crypto.mac
+        cryptoParamsV3Dic["version"] = params.crypto.version
+        
+        keyDic["crypto"] = cryptoParamsV3Dic
+        
+        return keyDic
     }
 }
 
@@ -229,7 +276,9 @@ public struct KeystoreParamsV3: Decodable, Encodable {
     
     /// Init with all params
     public init(address ad: String?, crypto cr: CryptoParamsV3, id i: String, version ver: Int) {
-        address = ad?.withoutHex
+        // XY:更新
+        //address = ad?.withoutHex
+        address = ad
         crypto = cr
         id = i
         version = ver

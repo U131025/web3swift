@@ -56,7 +56,19 @@ public enum AddressError: Error {
  
  ```
  */
+
+public enum CreateWalletType {
+    case htdf
+    case usdp
+    case eth
+    case het
+    case bit
+}
+
 public struct Address {
+ 
+    var walletType = CreateWalletType.htdf
+    
     /// Address type
     public enum AddressType {
         /// Any ethereum address
@@ -64,7 +76,7 @@ public struct Address {
         /// Address for contract deployment
         case contractDeployment
     }
-
+    
     /// Checks if address size is 20 bytes long.
     /// Always returns true for contractDeployment address
     public var isValid: Bool {
@@ -89,16 +101,65 @@ public struct Address {
             return Data()
         }
     }
-
+    
     /// Address string converted to checksum
     /// returns 0x for contractDeployment address
     public var address: String {
+        //NSLog("fwerwrwafasfrasrwarwer: \(addressData.count) \(walletType) \(_address)")
+        if addressData.count == 20 && walletType == .eth {
+            return Address.toChecksumAddress(_address)!.lowercased()
+        }
+
+        guard addressData.count != 0 && addressData.count != 20 else {
+            return _address.lowercased()
+        }
+        
         switch type {
         case .normal:
-            return Address.toChecksumAddress(_address)!
+            switch walletType {
+            case .usdp:
+               // NSLog("1111111111fdrwrwrwerfsfffadsf13213123: \(getUSDPAddress())")
+                return getUSDPAddress()
+            case .htdf:
+                 //NSLog("1111111111fdrwrwrwerfsfffadsf13213123: \(getHTDFAddress())")
+                return  getHTDFAddress()
+            case .het:
+                //NSLog("1111111111fdrwrwrwerfsfffadsf13213123: \(getHTDFAddress())")
+                return  getHETAddress()
+            case .eth:
+                 //NSLog("1111111111111111fdrwrwrwerfsfffadsf13213123: \(Address.toChecksumAddress(_address)!)")
+                return Address.toChecksumAddress(_address)!
+            default:
+                return getHTDFAddress()
+            }
+        
         case .contractDeployment:
             return "0x"
         }
+    }
+    
+    private func getUSDPAddress() -> String {
+        let compressData = try! SECP256K1.combineSerializedPublicKeys(keys: [addressData], outputCompressed: true)
+        let sourceData = Data(hexStr: "PubKeySecp256k1") + Data(bytes: compressData.bytesWeb)
+        
+        let data = RIPEMD160.hash(message: sourceData.sha256())
+        let covertData = Bech32().covertBits(data: data, fromBits: 8, toBits: 5, pad: true)
+        return Bech32().encode(hrp: "usdp", data: covertData)
+    }
+    
+    public func getHTDFAddress() -> String {
+        let compressData = try! SECP256K1.combineSerializedPublicKeys(keys: [addressData], outputCompressed: true)
+        let sourceData = Data(hexStr: "PubKeySecp256k1") + Data(bytes: compressData.bytesWeb)
+        let data = RIPEMD160.hash(message: sourceData.sha256())
+        let covertData = Bech32().covertBits(data: data, fromBits: 8, toBits: 5, pad: true)
+        return Bech32().encode(hrp: "htdf", data: covertData)
+    }
+    public func getHETAddress() -> String {
+        let compressData = try! SECP256K1.combineSerializedPublicKeys(keys: [addressData], outputCompressed: true)
+        let sourceData = Data(hexStr: "PubKeySecp256k1") + Data(bytes: compressData.bytesWeb)
+        let data = RIPEMD160.hash(message: sourceData.sha256())
+        let covertData = Bech32().covertBits(data: data, fromBits: 8, toBits: 5, pad: true)
+        return Bech32().encode(hrp: "0x", data: covertData)
     }
     
     /// Converts address to checksum address
@@ -106,7 +167,7 @@ public struct Address {
         let address = addr.lowercased().withoutHex
         guard let hash = address.data(using: .ascii)?.keccak256().hex else { return nil }
         var ret = "0x"
-
+        
         for (i, char) in address.enumerated() {
             let startIdx = hash.index(hash.startIndex, offsetBy: i)
             let endIdx = hash.index(hash.startIndex, offsetBy: i + 1)
@@ -126,10 +187,13 @@ public struct Address {
     /// - Parameter addressString: Hex string of address
     /// - Parameter type: Address type. default: .normal
     /// Automatically adds 0x prefix if its not found
-    public init(_ addressString: String, type: AddressType = .normal) {
+    public init(_ addressString: String, type: AddressType = .normal, walletType: CreateWalletType = CreateWalletType.htdf) {
+        self.walletType = walletType
+        
         switch type {
         case .normal:
             // check for checksum
+            ///NSLog("11111111111111111111111111: \(addressString.withHex) \(addressString)")
             _address = addressString.withHex
             self.type = .normal
         case .contractDeployment:
@@ -137,7 +201,7 @@ public struct Address {
             self.type = .contractDeployment
         }
     }
-
+    
     /// - Parameter addressData: Address data
     /// - Parameter type: Address type. default: .normal
     /// - Important: addressData is not the utf8 format of hex string
@@ -165,7 +229,8 @@ public struct Address {
 extension Address: Equatable {
     /// Compares address checksum representation. So there won't be a conflict with string casing
     public static func == (lhs: Address, rhs: Address) -> Bool {
-        return lhs.address == rhs.address && lhs.type == rhs.type
+        //NSLog("r3r32423434123213123; lhs.address.withHex\(lhs.address.withHex) rhs.address.withHex: \(rhs.address.withHex)")
+        return lhs.address.withHex == rhs.address.withHex && lhs.type == rhs.type
     }
 }
 
@@ -194,7 +259,7 @@ public extension String {
     var isContractAddress: Bool {
         return hex.count > 0
     }
-
+    
     /// - Returns: true is address is 20 bytes long
     var isAddress: Bool {
         return hex.count == 20

@@ -37,8 +37,8 @@ enum AesMode {
     }
     func blockMode(_ iv: Data) -> BlockMode {
         switch self {
-        case .ctr: return CTR(iv: iv.bytes)
-        case .cbc: return CBC(iv: iv.bytes)
+        case .ctr: return CTR(iv: iv.bytesWeb)
+        case .cbc: return CBC(iv: iv.bytesWeb)
         }
     }
 }
@@ -79,14 +79,14 @@ class AES {
     }
     
     func encrypt(_ digest: [UInt8]) throws -> [UInt8] {
-        return try AES128(key: key, iv: blockMode.iv).encrypt(Data(digest), padding: padding, mode: blockMode.mode).bytes
+        return try AES128(key: key, iv: blockMode.iv).encrypt(Data(digest), padding: padding, mode: blockMode.mode).bytesWeb
     }
     func encrypt(_ digest: Data) throws -> Data {
         return try AES128(key: key, iv: blockMode.iv).encrypt(digest, padding: padding, mode: blockMode.mode)
     }
     
     func decrypt(_ digest: [UInt8]) throws -> [UInt8] {
-        return try AES128(key: key, iv: blockMode.iv).decrypt(Data(digest), padding: padding, mode: blockMode.mode).bytes
+        return try AES128(key: key, iv: blockMode.iv).decrypt(Data(digest), padding: padding, mode: blockMode.mode).bytesWeb
     }
     func decrypt(_ digest: Data) throws -> Data {
         return try AES128(key: key, iv: blockMode.iv).decrypt(digest, padding: padding, mode: blockMode.mode)

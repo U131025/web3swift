@@ -123,10 +123,20 @@ extension Web3Utils {
     /// or raw concat(X,Y) (64 bytes) format.
     ///
     /// Returns the Address object.
-    public static func publicToAddress(_ publicKey: Data) throws -> Address {
-        let addressData = try Web3Utils.publicToAddressData(publicKey)
-        let address = addressData.hex
-        return Address(address)
+    public static func publicToAddress(_ publicKey: Data, walletType: CreateWalletType = CreateWalletType.htdf) throws -> Address {
+//
+        switch walletType {
+        case .htdf, .usdp, .het:
+            return Address(publicKey.hex, walletType: walletType)
+        case .eth:
+            let addressData = try Web3Utils.publicToAddressData(publicKey)
+            let address = addressData.hex
+            return Address(address, walletType: walletType)
+        default:
+            let addressData = try Web3Utils.publicToAddressData(publicKey)
+            let address = addressData.hex
+            return Address(address, walletType: walletType)
+        }
     }
 
     /// Convert a public key to the corresponding Address. Accepts public keys in compressed (33 bytes), non-compressed (65 bytes)
@@ -215,8 +225,8 @@ extension Web3Utils {
     /// Input parameters should be Data objects.
     public static func hashECRecover(hash: Data, signature: Data) throws -> Address {
         try signature.checkSignatureSize()
-        let rData = signature[0 ..< 32].bytes
-        let sData = signature[32 ..< 64].bytes
+        let rData = signature[0 ..< 32].bytesWeb
+        let sData = signature[32 ..< 64].bytesWeb
         let vData = signature[64]
         let signatureData = try SECP256K1.marshalSignature(v: vData, r: rData, s: sData)
         let publicKey = try SECP256K1.recoverPublicKey(hash: hash, signature: signatureData)
@@ -244,7 +254,7 @@ extension Web3Utils {
     /// Unmarshals a 65 byte recoverable EC signature into internal structure.
     static func unmarshalSignature(signatureData: Data) -> SECP256K1.UnmarshaledSignature? {
         if signatureData.count != 65 { return nil }
-        let bytes = signatureData.bytes
+        let bytes = signatureData.bytesWeb
         let r = Array(bytes[0 ..< 32])
         let s = Array(bytes[32 ..< 64])
         return SECP256K1.UnmarshaledSignature(v: bytes[64], r: r, s: s)

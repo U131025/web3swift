@@ -337,7 +337,7 @@ struct SECP256K1 {
 
     static func unmarshalSignature(signatureData: Data) throws -> UnmarshaledSignature {
         try signatureData.checkSignatureSize()
-        let bytes = signatureData.bytes
+        let bytes = signatureData.bytesWeb
         let r = Array(bytes[0 ..< 32])
         let s = Array(bytes[32 ..< 64])
         var v = bytes[64]

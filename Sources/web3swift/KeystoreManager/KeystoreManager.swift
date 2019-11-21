@@ -82,8 +82,11 @@ public class KeystoreManager: AbstractKeystore {
     public func walletForAddress(_ address: Address) -> AbstractKeystore? {
         for keystore in keystores {
             guard let key = keystore.addresses.first else { continue }
-            if key == address && key.isValid {
+            //NSLog("1777777777777777777777777777: \(key) \(address) \(keystores.count)")
+            // && key.isValid
+            if key.description.lowercased() == address.description.lowercased() {
                 return keystore as AbstractKeystore?
+                 //NSLog("17777777777777777777777777fdsfwerqwrewrewrewrewrewr77: \(key) \(address)")
             }
         }
         for keystore in bip32keystores {
@@ -195,5 +198,6 @@ public class KeystoreManager: AbstractKeystore {
                 }
             }
         }
+        //NSLog("4324324: \(keystores.count)")
     }
 }

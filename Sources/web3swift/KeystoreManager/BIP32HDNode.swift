@@ -98,9 +98,9 @@ public class HDNode {
         if header == HDNode.HDversion().privatePrefix {
             serializePrivate = true
         }
-        depth = data[4 ..< 5].bytes[0]
+        depth = data[4 ..< 5].bytesWeb[0]
         parentFingerprint = data[5 ..< 9]
-        let cNum = data[9 ..< 13].bytes
+        let cNum = data[9 ..< 13].bytesWeb
         childNumber = UnsafePointer(cNum).withMemoryRebound(to: UInt32.self, capacity: 1) {
             $0.pointee
         }
@@ -143,8 +143,8 @@ public class HDNode {
     public init(seed: Data) throws {
         guard seed.count >= 16 else { throw Error.invalidSeedSize }
         let hmacKey = "Bitcoin seed".data(using: .ascii)!
-        let hmac = HMAC(key: hmacKey.bytes, variant: .sha512)
-        let entropy = try hmac.authenticate(seed.bytes)
+        let hmac = HMAC(key: hmacKey.bytesWeb, variant: .sha512)
+        let entropy = try hmac.authenticate(seed.bytesWeb)
         try entropy.checkEntropySize()
         let I_L = entropy[0 ..< 32]
         let I_R = entropy[32 ..< 64]
@@ -213,23 +213,25 @@ public class HDNode {
             var trueIndex: UInt32
             if index >= HDNode.hardenedIndexPrefix || hardened {
                 trueIndex = index
+              
                 if trueIndex < HDNode.hardenedIndexPrefix {
                     trueIndex = trueIndex + HDNode.hardenedIndexPrefix
                 }
-                let hmac = HMAC(key: chaincode.bytes, variant: .sha512)
+                //NSLog("fwerweresarfewrwerweraewfasrfawer: \(HDNode.hardenedIndexPrefix) \(trueIndex)  \(index)")
+                let hmac = HMAC(key: chaincode.bytesWeb, variant: .sha512)
                 var inputForHMAC = Data()
                 inputForHMAC.append(Data([UInt8(0x00)]))
                 inputForHMAC.append(privateKey!)
                 inputForHMAC.append(trueIndex.serialize32())
-                entropy = try hmac.authenticate(inputForHMAC.bytes)
+                entropy = try hmac.authenticate(inputForHMAC.bytesWeb)
                 try entropy.checkEntropySize()
             } else {
                 trueIndex = index
-                let hmac = HMAC(key: chaincode.bytes, variant: .sha512)
+                let hmac = HMAC(key: chaincode.bytesWeb, variant: .sha512)
                 var inputForHMAC = Data()
                 inputForHMAC.append(publicKey)
                 inputForHMAC.append(trueIndex.serialize32())
-                entropy = try hmac.authenticate(inputForHMAC.bytes)
+                entropy = try hmac.authenticate(inputForHMAC.bytesWeb)
                 try entropy.checkEntropySize()
             }
             let I_L = entropy[0 ..< 32]
@@ -269,11 +271,11 @@ public class HDNode {
             return newNode
         } else { // deriving only the public key
             guard !(index >= HDNode.hardenedIndexPrefix || hardened) else { throw DeriveError.noHardenedDerivation }
-            let hmac = HMAC(key: self.chaincode.bytes, variant: .sha512)
+            let hmac = HMAC(key: self.chaincode.bytesWeb, variant: .sha512)
             var inputForHMAC = Data()
             inputForHMAC.append(publicKey)
             inputForHMAC.append(index.serialize32())
-            var entropy = try hmac.authenticate(inputForHMAC.bytes) // derive public key when is itself public key
+            var entropy = try hmac.authenticate(inputForHMAC.bytesWeb) // derive public key when is itself public key
             try entropy.checkEntropySize()
             let tempKey = Data(entropy[0 ..< 32])
             let chaincode = Data(entropy[32 ..< 64])
@@ -330,7 +332,7 @@ public class HDNode {
     /// Base58 string representation of HDNode's data
     public func serializeToString(serializePublic: Bool = true, version: HDversion = HDversion()) -> String? {
         guard let data = self.serialize(serializePublic: serializePublic, version: version) else { return nil }
-        let encoded = Base58.base58FromBytes(data.bytes)
+        let encoded = Base58.base58FromBytes(data.bytesWeb)
         return encoded
     }
     

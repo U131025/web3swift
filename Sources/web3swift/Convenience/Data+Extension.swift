@@ -35,7 +35,8 @@ public extension Data {
         var values = values
         self.init(buffer: UnsafeBufferPointer(start: &values, count: values.count))
     }
-    var bytes: [UInt8] {
+    
+    var bytesToArray: [UInt8] {
         return Array(self)
     }
     
@@ -171,3 +172,79 @@ extension UInt8 {
         }
     }
 }
+
+extension Data {
+    public init(hexStr: String) {
+        self.init(Array<UInt8>(hexStr: hexStr))
+    }
+    
+    public var bytesWeb: Array<UInt8> {
+        return Array(self)
+    }
+    
+    public func toHexString() -> String {
+        return bytesWeb.toHexString()
+    }
+}
+
+extension Array {
+    public init(reserveCapacity: Int) {
+        self = Array<Element>()
+        self.reserveCapacity(reserveCapacity)
+    }
+    
+    var slice: ArraySlice<Element> {
+        return self[self.startIndex ..< self.endIndex]
+    }
+}
+
+extension Array where Element == UInt8 {
+    public init(hexStr: String) {
+        self.init(reserveCapacity: hexStr.unicodeScalars.lazy.underestimatedCount)
+        var buffer: UInt8?
+        var skip = hexStr.hasPrefix("0x") ? 2 : 0
+        for char in hexStr.unicodeScalars.lazy {
+            guard skip == 0 else {
+                skip -= 1
+                continue
+            }
+            guard char.value >= 48 && char.value <= 102 else {
+                removeAll()
+                return
+            }
+            let v: UInt8
+            let c: UInt8 = UInt8(char.value)
+            switch c {
+            case let c where c <= 57:
+                v = c - 48
+            case let c where c >= 65 && c <= 70:
+                v = c - 55
+            case let c where c >= 97:
+                v = c - 87
+            default:
+                removeAll()
+                return
+            }
+            if let b = buffer {
+                append(b << 4 | v)
+                buffer = nil
+            } else {
+                buffer = v
+            }
+        }
+        if let b = buffer {
+            append(b)
+        }
+    }
+    
+    public func toHexString() -> String {
+        return `lazy`.reduce("") {
+            var s = String($1, radix: 16)
+            if s.count == 1 {
+                s = "0" + s
+            }
+            return $0 + s
+        }
+    }
+}
+

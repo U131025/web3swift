@@ -9,7 +9,7 @@ Pod::Spec.new do |spec|
     spec.summary      = 'Web3 implementation in pure Swift for iOS, macOS, tvOS, watchOS and Linux'
     spec.homepage     = 'https://github.com/bankex/web3swift'
     spec.author       = 'Bankex Foundation'
-    spec.source       = { :git => 'https://github.com/bankex/web3swift.git', :tag => spec.version }
+    spec.source       = { :git => 'https://github.com/U131025/web3swift.git', :tag => spec.version }
     spec.source_files = 'Sources/web3swift/**/*.swift'
     spec.swift_version = '4.2'
     spec.module_name = 'web3swift'
