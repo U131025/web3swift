@@ -63,6 +63,12 @@ public enum CreateWalletType {
     case eth
     case het
     case bit
+    case bch
+    case ltc
+    case dash
+    case bsv
+    case xrp
+    case trx
 }
 
 public struct Address {
